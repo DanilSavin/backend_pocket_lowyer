@@ -1,0 +1,42 @@
+name: pocket-lawyer
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    secrets:
+      - source: gigachat_auth_key
+        target: gigachat.auth-key
+    environment:
+      GIGACHAT_SCOPE: GIGACHAT_API_PERS
+      GIGACHAT_MODEL: GigaChat-3-Ultra
+      SERVER_FORWARD_HEADERS_STRATEGY: framework
+    volumes:
+      - backend_logs:/app/logs
+    networks:
+      - internal
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    networks:
+      - internal
+
+secrets:
+  gigachat_auth_key:
+    file: ./secrets/gigachat_auth_key.txt
+
+volumes:
+  backend_logs:
+
+networks:
+  internal:
+    driver: bridge
