@@ -17,7 +17,9 @@ function App() {
     const data = new FormData(); data.append('file', file)
     try {
       const response = await fetch('/api/documents/analyze', { method: 'POST', body: data })
-      const payload = await response.json()
+      const raw = await response.text()
+      let payload
+      try { payload = JSON.parse(raw) } catch { payload = { message: raw || 'Сервер вернул некорректный ответ.' } }
       if (!response.ok) throw new Error(payload.message || 'Не удалось проанализировать файл.')
       setResult(payload)
     } catch (e) { setError(e.message) } finally { setLoading(false) }
