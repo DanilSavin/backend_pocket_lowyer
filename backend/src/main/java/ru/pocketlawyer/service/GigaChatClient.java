@@ -125,8 +125,9 @@ public class GigaChatClient {
         try {
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() / 100 != 2) {
-                log.warn("GigaChat вернул HTTP {} при действии: {}", response.statusCode(), action);
-                throw new GigaChatException("Не удалось " + action + ": GigaChat вернул HTTP " + response.statusCode() + ".");
+                String details = errorDetails(response.body());
+                log.warn("GigaChat вернул HTTP {} при действии {}: {}", response.statusCode(), action, details);
+                throw new GigaChatException("Не удалось " + action + ": GigaChat вернул HTTP " + response.statusCode() + ". " + details);
             }
             return json.readTree(response.body());
         } catch (InterruptedException e) {
@@ -154,5 +155,15 @@ public class GigaChatClient {
 
     private String safeFileName(String name) { return (name == null ? "contract" : name).replaceAll("[\\r\\n\\\"]", "_"); }
     private long elapsedMs(long startedAt) { return Duration.ofNanos(System.nanoTime() - startedAt).toMillis(); }
+    private String errorDetails(String body) {
+        try {
+            JsonNode response = json.readTree(body);
+            String message = response.path("error_description").asText();
+            if (message.isBlank()) message = response.path("message").asText();
+            if (message.isBlank()) message = response.path("error").asText();
+            if (!message.isBlank()) return "Причина: " + message.substring(0, Math.min(message.length(), 300));
+        } catch (Exception ignored) { }
+        return "GigaChat не передал описание ошибки.";
+    }
     private record AccessToken(String value, long refreshAt) { boolean valid() { return System.currentTimeMillis() < refreshAt; } }
 }
